@@ -19,6 +19,8 @@ import java.util.Properties;
 import java.util.Vector;
 import java.util.HashSet;
 import java.util.logging.Level;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.io.InputStream;
@@ -26,6 +28,7 @@ import java.io.File;
 
 import com.xmlcalabash.io.ReadablePipe;
 import com.xmlcalabash.io.DocumentSequence;
+import com.xmlcalabash.runtime.XAtomicStep;
 import com.xmlcalabash.util.URIUtils;
 import com.xmlcalabash.util.S9apiUtils;
 import com.xmlcalabash.util.RelevantNodes;
@@ -70,12 +73,13 @@ public class XProcConfiguration {
     public String entityResolver = null;
     public String uriResolver = null;
     public String errorListener = null;
-    public Hashtable<QName,String> implementations = new Hashtable<QName,String> ();
     public Hashtable<String,String> serializationOptions = new Hashtable<String,String>();
     public LogOptions logOpt = LogOptions.WRAPPED;
     public Vector<String> extensionFunctions = new Vector<String>();
 
     public boolean extensionValues = false;
+    
+    private Hashtable<QName,String> implementations = new Hashtable<QName,String> ();
     
     private Processor cfgProcessor = null;
     private boolean firstInput = false;
@@ -248,14 +252,37 @@ public class XProcConfiguration {
         firstInput = true;
         firstOutput = true;
     }
-
-    public String implementationClass(QName type) {
-        if (implementations.containsKey(type)) {
-            return implementations.get(type);
-        } else {
-            return null;
+    
+    public boolean isStepAvailable(QName type) {
+		return implementations.containsKey(type);
+	}
+	
+	public XProcStep newStep(XProcRuntime runtime,XAtomicStep step){
+        String className = implementations.get(step.getType());
+        if (className == null) {
+            throw new UnsupportedOperationException("Misconfigured. No 'class' in configuration for " + step.getType());
         }
-    }
+
+        // FIXME: This isn't really very secure...
+        if (runtime.getSafeMode() && !className.startsWith("com.xmlcalabash.")) {
+            throw XProcException.dynamicError(21);
+        }
+        
+		try {
+			Constructor<?> constructor = Class.forName(className).getConstructor(XProcRuntime.class, XAtomicStep.class);
+			return (XProcStep) constructor.newInstance(runtime,step);
+		} catch (NoSuchMethodException nsme) {
+			throw new UnsupportedOperationException("No such method: " + className, nsme);
+		} catch (ClassNotFoundException cfne) {
+			throw new UnsupportedOperationException("Class not found: " + className, cfne);
+		} catch (InstantiationException ie) {
+			throw new UnsupportedOperationException("Instantiation error", ie);
+		} catch (IllegalAccessException iae) {
+			throw new UnsupportedOperationException("Illegal access error", iae);
+		} catch (InvocationTargetException ite) {
+			throw new UnsupportedOperationException("Invocation target exception", ite);
+		}
+	}
 
     private void parseSchemaAware(XdmNode node) {
         String value = node.getStringValue().trim();
