@@ -17,6 +17,8 @@ import net.sf.saxon.s9api.Processor;
 import net.sf.saxon.s9api.SaxonApiException;
 import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.Configuration;
+
+import com.xmlcalabash.core.XProcConfiguration;
 import com.xmlcalabash.core.XProcException;
 import com.xmlcalabash.core.XProcConstants;
 import com.xmlcalabash.core.XProcRuntime;
@@ -35,15 +37,15 @@ import java.io.IOException;
  * To change this template use File | Settings | File Templates.
  */
 public class XProcURIResolver implements URIResolver, EntityResolver {
+    private XProcConfiguration config = null;
     private URIResolver uriResolver = null;
     private EntityResolver entityResolver = null;
-    private XProcRuntime runtime = null;
     private Hashtable<String,XdmNode> cache = new Hashtable<String,XdmNode> ();
     private Logger logger = Logger.getLogger(this.getClass().getName());
     private static boolean useCache = true; // FIXME: this is supposed to be temporary!
 
-    public XProcURIResolver(XProcRuntime runtime) {
-        this.runtime = runtime;
+    public XProcURIResolver(XProcConfiguration config) {
+        this.config = config;
     }
 
     public void setUnderlyingURIResolver(URIResolver resolver) {
@@ -67,13 +69,13 @@ public class XProcURIResolver implements URIResolver, EntityResolver {
     }
 
     public Source resolve(String href, String base) throws TransformerException {
-        runtime.finest(null,null,"URIResolver(" + href + "," + base + ")");
+        config.getMessageListner().finest(null,null,"URIResolver(" + href + "," + base + ")");
 
         try {
             URI baseURI = new URI(base);
             String uri = baseURI.resolve(href).toASCIIString();
             if (cache.containsKey(uri)) {
-                runtime.finest(null ,null,"Returning cached document.");
+                config.getMessageListner().finest(null ,null,"Returning cached document.");
                 return cache.get(uri).asSource();
             }
 
@@ -83,7 +85,7 @@ public class XProcURIResolver implements URIResolver, EntityResolver {
             }
             */
         } catch (URISyntaxException use) {
-            runtime.finest(null,null,"URISyntaxException resolving base and href?");
+            config.getMessageListner().finest(null,null,"URISyntaxException resolving base and href?");
         }
 
         if (uriResolver != null) {
@@ -122,7 +124,7 @@ public class XProcURIResolver implements URIResolver, EntityResolver {
 
         href = URIUtils.encode(href);
 
-        runtime.finest(null,null,"Attempting to parse: " + href + " (" + base + ")");
+        config.getMessageListner().finest(null,null,"Attempting to parse: " + href + " (" + base + ")");
 
         try {
             source = resolve(href, base);
@@ -134,18 +136,27 @@ public class XProcURIResolver implements URIResolver, EntityResolver {
             try {
                 URI baseURI = new URI(base);
                 source = new SAXSource(new InputSource(baseURI.resolve(href).toASCIIString()));
+                XMLReader reader = ((SAXSource) source).getXMLReader();
+                if (reader == null) {
+                    try {
+                        reader = SAXParserFactory.newInstance().newSAXParser().getXMLReader();
+                        reader.setEntityResolver(this);
+                        ((SAXSource) source).setXMLReader(reader);
+                    } catch (SAXException se) {
+                        // nop?
+                    } catch (ParserConfigurationException pce) {
+                        // nop?
+                    }
+                }
             } catch (URISyntaxException use) {
                 throw new XProcException(use);
             }
         }
 
-        DocumentBuilder builder = runtime.getProcessor().newDocumentBuilder();
+        DocumentBuilder builder = config.getProcessor().newDocumentBuilder();
         builder.setDTDValidation(dtdValidate);
         builder.setLineNumbering(true);
         //builder.setWhitespaceStrippingPolicy(WhitespaceStrippingPolicy.NONE);
-
-        Processor proc = runtime.getProcessor();
-        Configuration config = proc.getUnderlyingConfiguration();
 
         try {
             return builder.build(source);
@@ -162,17 +173,17 @@ public class XProcURIResolver implements URIResolver, EntityResolver {
     }
 
     public InputSource resolveEntity(String publicId, String systemId) throws SAXException, IOException {
-        runtime.finest(null,null,"ResolveEntity(" + publicId + "," + systemId + ")");
+        config.getMessageListner().finest(null,null,"ResolveEntity(" + publicId + "," + systemId + ")");
 
         try {
             URI baseURI = new URI(systemId);
             String uri = baseURI.toASCIIString();
             if (cache.containsKey(uri)) {
-                runtime.finest(null,null,"Returning cached document.");
-                return S9apiUtils.xdmToInputSource(runtime, cache.get(uri));
+                config.getMessageListner().finest(null,null,"Returning cached document.");
+                return S9apiUtils.xdmToInputSource(config.getProcessor(), cache.get(uri));
             }
         } catch (URISyntaxException use) {
-            runtime.finest(null,null,"URISyntaxException resolving entityResolver systemId: " + systemId);
+            config.getMessageListner().finest(null,null,"URISyntaxException resolving entityResolver systemId: " + systemId);
         } catch (SaxonApiException sae) {
             throw new XProcException(sae);
         }

@@ -4,7 +4,6 @@ import com.xmlcalabash.core.XProcException;
 import com.xmlcalabash.runtime.XCompoundStep;
 import com.xmlcalabash.runtime.XStep;
 import net.sf.saxon.lib.ExtensionFunctionCall;
-import net.sf.saxon.lib.ExtensionFunctionDefinition;
 import net.sf.saxon.om.StructuredQName;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.tree.iter.SingletonIterator;
@@ -12,8 +11,9 @@ import net.sf.saxon.value.SequenceType;
 import net.sf.saxon.value.AnyURIValue;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.trans.XPathException;
+
+import com.xmlcalabash.core.XProcConfiguration;
 import com.xmlcalabash.core.XProcConstants;
-import com.xmlcalabash.core.XProcRuntime;
 
 
 //
@@ -38,16 +38,11 @@ import com.xmlcalabash.core.XProcRuntime;
  * Implementation of the exf:cwd() function
  */
 
-public class Cwd extends ExtensionFunctionDefinition {
+public class Cwd extends CalabashFunction {
     private static StructuredQName funcname = new StructuredQName("exf", XProcConstants.NS_EXPROC_FUNCTIONS,"cwd");
-    private XProcRuntime runtime = null;
 
-    protected Cwd() {
-        // you can't call this one
-    }
-
-    public Cwd(XProcRuntime runtime) {
-        this.runtime = runtime;
+    public Cwd(XProcConfiguration config) {
+        super(config);
     }
 
     public StructuredQName getFunctionQName() {
@@ -77,7 +72,7 @@ public class Cwd extends ExtensionFunctionDefinition {
     private class CwdCall extends ExtensionFunctionCall {
         public SequenceIterator call(SequenceIterator[] arguments, XPathContext context) throws XPathException {
 
-            XStep step = runtime.getXProcData().getStep();
+            XStep step = config.getCurrentRuntime().getXProcData().getStep();
             // FIXME: this can't be the best way to do this...
             if (!(step instanceof XCompoundStep)) {
                 throw XProcException.dynamicError(23);
@@ -85,7 +80,7 @@ public class Cwd extends ExtensionFunctionDefinition {
 
             // In 0.9.20, I removed the trailing slash from cwd().
             // The community didn't like that, so I put it back.
-            String cwd = runtime.getStaticBaseURI().toASCIIString();
+            String cwd = config.getCurrentRuntime().getStaticBaseURI().toASCIIString();
             return SingletonIterator.makeIterator(new AnyURIValue(cwd));
         }
     }

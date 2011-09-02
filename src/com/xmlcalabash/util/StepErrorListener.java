@@ -8,6 +8,7 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.SourceLocator;
 import javax.xml.transform.ErrorListener;
 
+import com.xmlcalabash.core.XProcConfiguration;
 import com.xmlcalabash.core.XProcRuntime;
 import com.xmlcalabash.core.XProcConstants;
 import net.sf.saxon.trans.XPathException;
@@ -31,38 +32,36 @@ public class StepErrorListener implements ErrorListener {
     private static QName _column = new QName("", "column");
     private static QName _code = new QName("", "code");
 
-    private XProcRuntime runtime = null;
-    private URI baseURI = null;
+    private XProcConfiguration config = null;
 
-    public StepErrorListener(XProcRuntime runtime) {
+    public StepErrorListener(XProcConfiguration config) {
         super();
-        this.runtime = runtime;
-        baseURI = runtime.getStaticBaseURI();
+        this.config = config;
     }
 
     public void error(TransformerException exception) throws TransformerException {
         if (!report("error", exception)) {
-            runtime.error(exception);
+            config.getMessageListner().error(exception);
         }
     }
 
     public void fatalError(TransformerException exception) throws TransformerException {
         if (!report("fatal-error", exception)) {
-            runtime.error(exception);
+            config.getMessageListner().error(exception);
         }
     }
 
     public void warning(TransformerException exception) throws TransformerException {
         if (!report("warning", exception)) {
             // XProc doesn't have recoverable exceptions...
-            runtime.error(exception);
+            config.getMessageListner().error(exception);
         }
     }
 
     private boolean report(String type, TransformerException exception) {
-        TreeWriter writer = new TreeWriter(runtime);
+        TreeWriter writer = new TreeWriter(config.getProcessor());
 
-        writer.startDocument(baseURI);
+        writer.startDocument(config.getCurrentRuntime().getStaticBaseURI());
         writer.addStartElement(c_error);
         writer.addAttribute(_type, type);
 
@@ -117,6 +116,6 @@ public class StepErrorListener implements ErrorListener {
 
         XdmNode node = writer.getResult();
 
-        return runtime.getXProcData().catchError(node);
+        return config.getCurrentRuntime().getXProcData().catchError(node);
     }
 }

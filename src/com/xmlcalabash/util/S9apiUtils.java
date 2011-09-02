@@ -144,9 +144,12 @@ public class S9apiUtils {
         }
     }
 
-    public static void serialize(XProcRuntime xproc, XdmNode node, Serializer serializer) throws SaxonApiException {
-        Processor qtproc = xproc.getProcessor();
-        XQueryCompiler xqcomp = qtproc.newXQueryCompiler();
+    public static void serialize(XProcRuntime runtime, XdmNode node, Serializer serializer) throws SaxonApiException {
+        serialize(runtime.getProcessor(),node,serializer);
+    }
+    
+    public static void serialize(Processor processor, XdmNode node, Serializer serializer) throws SaxonApiException {
+        XQueryCompiler xqcomp = processor.newXQueryCompiler();
         XQueryExecutable xqexec = xqcomp.compile(".");
         XQueryEvaluator xqeval = xqexec.load();
         xqeval.setContextItem(node);
@@ -154,9 +157,12 @@ public class S9apiUtils {
         xqeval.run();
     }
 
-    public static void serialize(XProcRuntime xproc, Vector<XdmNode> nodes, Serializer serializer) throws SaxonApiException {
-        Processor qtproc = xproc.getProcessor();
-        XQueryCompiler xqcomp = qtproc.newXQueryCompiler();
+    public static void serialize(XProcRuntime runtime, Vector<XdmNode> nodes, Serializer serializer) throws SaxonApiException {
+        serialize(runtime.getProcessor(),nodes,serializer);
+    }
+    
+    public static void serialize(Processor processor, Vector<XdmNode> nodes, Serializer serializer) throws SaxonApiException {
+        XQueryCompiler xqcomp = processor.newXQueryCompiler();
         XQueryExecutable xqexec = xqcomp.compile(".");
         XQueryEvaluator xqeval = xqexec.load();
         xqeval.setDestination(serializer);
@@ -189,12 +195,15 @@ public class S9apiUtils {
         }
     }
 
-    // FIXME: THIS METHOD IS A GROTESQUE HACK!
     public static InputSource xdmToInputSource(XProcRuntime runtime, XdmNode node) throws SaxonApiException {
+        return xdmToInputSource(runtime.getProcessor(), node);
+    }
+    // FIXME: THIS METHOD IS A GROTESQUE HACK!
+    public static InputSource xdmToInputSource(Processor processor, XdmNode node) throws SaxonApiException {
         StringWriter sw = new StringWriter();
         Serializer serializer = new Serializer();
         serializer.setOutputWriter(sw);
-        serialize(runtime, node, serializer);
+        serialize(processor, node, serializer);
 
         String serxml = sw.toString();
 

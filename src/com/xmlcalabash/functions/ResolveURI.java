@@ -4,7 +4,6 @@ import com.xmlcalabash.runtime.XCompoundStep;
 import com.xmlcalabash.runtime.XStep;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.lib.ExtensionFunctionCall;
-import net.sf.saxon.lib.ExtensionFunctionDefinition;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.om.StructuredQName;
@@ -13,8 +12,9 @@ import net.sf.saxon.tree.iter.SingletonIterator;
 import net.sf.saxon.tree.tiny.TinyDocumentImpl;
 import net.sf.saxon.value.AnyURIValue;
 import net.sf.saxon.value.SequenceType;
+
+import com.xmlcalabash.core.XProcConfiguration;
 import com.xmlcalabash.core.XProcConstants;
-import com.xmlcalabash.core.XProcRuntime;
 import com.xmlcalabash.core.XProcException;
 
 import java.net.URI;
@@ -42,16 +42,11 @@ import java.net.URISyntaxException;
  * Implementation of the XSLT system-property() function
  */
 
-public class ResolveURI extends ExtensionFunctionDefinition {
+public class ResolveURI extends CalabashFunction {
     private static StructuredQName funcname = new StructuredQName("p", XProcConstants.NS_XPROC, "resolve-uri");
-    private XProcRuntime runtime = null;
 
-    protected ResolveURI() {
-        // you can't call this one
-    }
-
-    public ResolveURI(XProcRuntime runtime) {
-        this.runtime = runtime;
+    public ResolveURI(XProcConfiguration config) {
+        super(config);
     }
 
     public StructuredQName getFunctionQName() {
@@ -87,7 +82,7 @@ public class ResolveURI extends ExtensionFunctionDefinition {
             SequenceIterator iter = arguments[0];
             String relativeURI = iter.next().getStringValue();
 
-            XStep step = runtime.getXProcData().getStep();
+            XStep step = config.getCurrentRuntime().getXProcData().getStep();
             // FIXME: this can't be the best way to do this...
             if (!(step instanceof XCompoundStep)) {
                 throw XProcException.dynamicError(23);
@@ -98,7 +93,7 @@ public class ResolveURI extends ExtensionFunctionDefinition {
                 iter = arguments[1];
                 baseURI = iter.next().getStringValue();
             } else {
-                baseURI = runtime.getStaticBaseURI().toASCIIString();
+                baseURI = config.getCurrentRuntime().getStaticBaseURI().toASCIIString();
                 try {
                     // FIXME: TinyDocumentImpl? Surely we can do better than that!
                     Item item = context.getContextItem();

@@ -1,5 +1,6 @@
 package com.xmlcalabash.core;
 
+import net.sf.saxon.Configuration;
 import net.sf.saxon.s9api.Axis;
 import net.sf.saxon.s9api.DocumentBuilder;
 import net.sf.saxon.s9api.Processor;
@@ -11,6 +12,7 @@ import net.sf.saxon.s9api.XdmNodeKind;
 import net.sf.saxon.s9api.XdmValue;
 import net.sf.saxon.tree.iter.NamespaceIterator;
 import net.sf.saxon.value.Whitespace;
+import net.sf.saxon.lib.ExtensionFunctionDefinition;
 import net.sf.saxon.om.NodeInfo;
 import net.sf.saxon.om.NamePool;
 
@@ -26,18 +28,33 @@ import java.net.URISyntaxException;
 import java.io.InputStream;
 import java.io.File;
 
+import com.xmlcalabash.functions.BaseURI;
+import com.xmlcalabash.functions.Cwd;
+import com.xmlcalabash.functions.IterationPosition;
+import com.xmlcalabash.functions.IterationSize;
+import com.xmlcalabash.functions.ResolveURI;
+import com.xmlcalabash.functions.StepAvailable;
+import com.xmlcalabash.functions.SystemProperty;
+import com.xmlcalabash.functions.ValueAvailable;
+import com.xmlcalabash.functions.VersionAvailable;
+import com.xmlcalabash.functions.XPathVersionAvailable;
 import com.xmlcalabash.io.ReadablePipe;
 import com.xmlcalabash.io.DocumentSequence;
 import com.xmlcalabash.runtime.XAtomicStep;
+import com.xmlcalabash.util.DefaultXProcMessageListener;
+import com.xmlcalabash.util.StepErrorListener;
 import com.xmlcalabash.util.URIUtils;
 import com.xmlcalabash.util.S9apiUtils;
 import com.xmlcalabash.util.RelevantNodes;
 import com.xmlcalabash.util.LogOptions;
+import com.xmlcalabash.util.XProcURIResolver;
 import com.xmlcalabash.model.Step;
 
 import javax.xml.transform.sax.SAXSource;
 import javax.xml.transform.Source;
+import javax.xml.transform.URIResolver;
 
+import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 
 /**
@@ -82,8 +99,12 @@ public class XProcConfiguration {
     private Hashtable<QName,String> implementations = new Hashtable<QName,String> ();
     
     private Processor cfgProcessor = null;
+    private XProcURIResolver resolver;
+    private XProcMessageListener msgListener;
     private boolean firstInput = false;
     private boolean firstOutput = false;
+    
+    private ThreadLocal<XProcRuntime> runtime = new ThreadLocal<XProcRuntime>();
 
     public XProcConfiguration() {
         cfgProcessor = new Processor(false);
@@ -102,6 +123,7 @@ public class XProcConfiguration {
             cfgProcessor = new Processor(true);
             loadConfiguration();
         }
+        setup();
     }
 
     public XProcConfiguration(boolean schemaAware) {
@@ -119,6 +141,7 @@ public class XProcConfiguration {
         }
 
         loadConfiguration();
+        setup();
     }
 
     public XProcConfiguration(Processor processor) {
@@ -127,10 +150,94 @@ public class XProcConfiguration {
         if (schemaAware != processor.isSchemaAware()) {
             throw new XProcException("Schema awareness in configuration conflicts with specified processor.");
         }
+        setup();
+    }
+    
+    public void setCurrentRuntime(XProcRuntime runtime){
+        if (this.runtime.get()==null){
+            this.runtime.set(runtime);
+        }
+    }
+    public XProcRuntime getCurrentRuntime(){
+        return runtime.get();
     }
 
     public Processor getProcessor() {
         return cfgProcessor;
+//        Processor processor = new Processor(cfgProcessor.isSchemaAware());
+//        processor.getUnderlyingConfiguration().setStripsAllWhiteSpace(false);
+//        processor.getUnderlyingConfiguration().setStripsWhiteSpace(Whitespace.NONE);
+//        return processor;
+    }
+    
+    public XProcURIResolver getResolver(){
+        return resolver;
+    }
+    
+    public void setURIResolver(URIResolver uriResolver){
+        resolver.setUnderlyingURIResolver(uriResolver);
+    }
+
+    public void setEntityResolver(EntityResolver entityResolver){
+        resolver.setUnderlyingEntityResolver(entityResolver);
+    }
+    
+    public XProcMessageListener getMessageListner(){
+        return msgListener;
+    }
+    
+    public void setMessageListener(XProcMessageListener msgListener){
+        this.msgListener =msgListener;
+    }
+    
+    private void setup(){
+        cfgProcessor.registerExtensionFunction(new Cwd(this));
+        cfgProcessor.registerExtensionFunction(new BaseURI(this));
+        cfgProcessor.registerExtensionFunction(new ResolveURI(this));
+        cfgProcessor.registerExtensionFunction(new SystemProperty(this));
+        cfgProcessor.registerExtensionFunction(new StepAvailable(this));
+        cfgProcessor.registerExtensionFunction(new IterationSize(this));
+        cfgProcessor.registerExtensionFunction(new IterationPosition(this));
+        cfgProcessor.registerExtensionFunction(new ValueAvailable(this));
+        cfgProcessor.registerExtensionFunction(new VersionAvailable(this));
+        cfgProcessor.registerExtensionFunction(new XPathVersionAvailable(this));
+        
+        Configuration saxonConfig = cfgProcessor.getUnderlyingConfiguration();
+        resolver = new XProcURIResolver(this);
+        saxonConfig.setURIResolver(resolver);
+
+        try {
+            if (uriResolver != null) {
+                resolver.setUnderlyingURIResolver((URIResolver) Class.forName(uriResolver).newInstance());
+            }
+            if (entityResolver != null) {
+                resolver.setUnderlyingEntityResolver((EntityResolver) Class.forName(entityResolver).newInstance());
+            }
+
+            if (errorListener != null) {
+                msgListener = (XProcMessageListener) Class.forName(errorListener).newInstance();
+            } else {
+                msgListener = new DefaultXProcMessageListener();
+            }
+        } catch (Exception e) {
+            throw new XProcException(e);
+        }
+
+        StepErrorListener errListener = new StepErrorListener(this);
+        saxonConfig.setErrorListener(errListener);
+
+
+        for (String className : extensionFunctions) {
+            try {
+                ExtensionFunctionDefinition def = (ExtensionFunctionDefinition) Class.forName(className).newInstance();
+                msgListener.fine(null, null, "Instantiated: " + className);
+                cfgProcessor.registerExtensionFunction(def);
+            } catch (NoClassDefFoundError ncdfe) {
+                msgListener.fine(null, null, "Failed to instantiate extension function: " + className);
+            } catch (Exception e) {
+                msgListener.fine(null, null, "Failed to instantiate extension function: " + className);
+            }
+        }
     }
 
     private void loadConfiguration() {

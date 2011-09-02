@@ -7,30 +7,25 @@ import net.sf.saxon.expr.Expression;
 import net.sf.saxon.expr.StaticContext;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.lib.ExtensionFunctionCall;
-import net.sf.saxon.lib.ExtensionFunctionDefinition;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.om.StructuredQName;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.tree.iter.SingletonIterator;
 import net.sf.saxon.value.StringValue;
 import net.sf.saxon.value.SequenceType;
+
+import com.xmlcalabash.core.XProcConfiguration;
 import com.xmlcalabash.core.XProcConstants;
-import com.xmlcalabash.core.XProcRuntime;
 
 /**
  * Implementation of the XSLT system-property() function
  */
 
-public class SystemProperty extends ExtensionFunctionDefinition {
+public class SystemProperty extends CalabashFunction {
     private static StructuredQName funcname = new StructuredQName("p", XProcConstants.NS_XPROC, "system-property");
-    private XProcRuntime runtime = null;
 
-     protected SystemProperty() {
-         // you can't call this one
-     }
-
-     public SystemProperty(XProcRuntime runtime) {
-         this.runtime = runtime;
+     public SystemProperty(XProcConfiguration config) {
+         super(config);
      }
 
      public StructuredQName getFunctionQName() {
@@ -67,7 +62,7 @@ public class SystemProperty extends ExtensionFunctionDefinition {
          public SequenceIterator call(SequenceIterator[] arguments, XPathContext context) throws XPathException {
              StructuredQName propertyName = null;
 
-             XStep step = runtime.getXProcData().getStep();
+             XStep step = config.getCurrentRuntime().getXProcData().getStep();
              // FIXME: this can't be the best way to do this...
              // FIXME: And what, exactly, is this even supposed to be doing!?
              if (step != null && !(step instanceof XCompoundStep)) {
@@ -96,23 +91,23 @@ public class SystemProperty extends ExtensionFunctionDefinition {
 
              if (uri.equals(XProcConstants.NS_XPROC)) {
                  if ("episode".equals(local)) {
-                     value = runtime.getEpisode();
+                     value = config.getCurrentRuntime().getEpisode();
                  } else if ("language".equals(local)) {
-                     value = runtime.getLanguage();
+                     value = config.getCurrentRuntime().getLanguage();
                  } else if ("product-name".equals(local)) {
-                     value = runtime.getProductName();
+                     value = config.getCurrentRuntime().getProductName();
                  } else if ("product-version".equals(local)) {
-                     value = runtime.getProductVersion();
+                     value = config.getCurrentRuntime().getProductVersion();
                  } else if ("vendor".equals(local)) {
-                     value = runtime.getVendor();
+                     value = config.getCurrentRuntime().getVendor();
                  } else if ("vendor-uri".equals(local)) {
-                     value = runtime.getVendorURI();
+                     value = config.getCurrentRuntime().getVendorURI();
                  } else if ("version".equals(local)) {
-                     value = runtime.getXProcVersion();
+                     value = config.getCurrentRuntime().getXProcVersion();
                  } else if ("xpath-version".equals(local)) {
-                     value = runtime.getXPathVersion();
+                     value = config.getCurrentRuntime().getXPathVersion();
                  } else if ("psvi-supported".equals(local)) {
-                     value = runtime.getPSVISupported() ? "true" : "false";
+                     value = config.getCurrentRuntime().getPSVISupported() ? "true" : "false";
                  }
              }
 

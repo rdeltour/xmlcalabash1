@@ -49,7 +49,6 @@ import java.net.URI;
 public class TreeWriter {
     protected static final String logger = "com.xmlcalabash.util";
     protected Controller controller = null;
-    protected XProcRuntime runtime = null;
     protected Executable exec = null;
     protected NamePool pool = null;
     protected XdmDestination destination = null;
@@ -62,8 +61,7 @@ public class TreeWriter {
      * Creates a new instance of ProcessMatch
      */
     public TreeWriter(XProcRuntime xproc) {
-        runtime = xproc;
-        controller = new Controller(runtime.getProcessor().getUnderlyingConfiguration());
+        controller = new Controller(xproc.getProcessor().getUnderlyingConfiguration());
         pool = controller.getNamePool();
         xLocationProvider = new XProcLocationProvider();
     }

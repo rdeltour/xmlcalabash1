@@ -64,7 +64,6 @@ public class ProcessMatch extends TreeWriter {
      */
     public ProcessMatch(XProcRuntime runtime, ProcessMatchingNodes processor) {
         super(runtime);
-        this.runtime = runtime;
         this.processor = processor;
         saxonConfig = runtime.getProcessor().getUnderlyingConfiguration();
     }

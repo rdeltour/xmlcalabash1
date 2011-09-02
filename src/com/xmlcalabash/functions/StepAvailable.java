@@ -5,7 +5,6 @@ import net.sf.saxon.expr.Expression;
 import net.sf.saxon.expr.StaticContext;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.lib.ExtensionFunctionCall;
-import net.sf.saxon.lib.ExtensionFunctionDefinition;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.om.StructuredQName;
 import net.sf.saxon.trans.XPathException;
@@ -13,8 +12,9 @@ import net.sf.saxon.tree.iter.SingletonIterator;
 import net.sf.saxon.value.BooleanValue;
 import net.sf.saxon.value.SequenceType;
 import net.sf.saxon.s9api.QName;
+
+import com.xmlcalabash.core.XProcConfiguration;
 import com.xmlcalabash.core.XProcConstants;
-import com.xmlcalabash.core.XProcRuntime;
 import com.xmlcalabash.core.XProcException;
 import com.xmlcalabash.runtime.XStep;
 import com.xmlcalabash.runtime.XPipeline;
@@ -42,16 +42,11 @@ import com.xmlcalabash.model.DeclareStep;
  * Implementation of the XProc p:step-available function
  */
 
-public class StepAvailable extends ExtensionFunctionDefinition {
-    private XProcRuntime runtime;
+public class StepAvailable extends CalabashFunction {
     private static StructuredQName funcname = new StructuredQName("p", XProcConstants.NS_XPROC, "step-available");
 
-    protected StepAvailable() {
-        // you can't call this one
-    }
-
-    public StepAvailable(XProcRuntime runtime) {
-        this.runtime = runtime;
+    public StepAvailable(XProcConfiguration config) {
+        super(config);
     }
 
     public StructuredQName getFunctionQName() {
@@ -88,7 +83,7 @@ public class StepAvailable extends ExtensionFunctionDefinition {
         public SequenceIterator call(SequenceIterator[] arguments, XPathContext context) throws XPathException {
             StructuredQName stepName = null;
 
-            XStep step = runtime.getXProcData().getStep();
+            XStep step = config.getCurrentRuntime().getXProcData().getStep();
             // FIXME: this can't be the best way to do this...
             if (!(step instanceof XCompoundStep)) {
                 throw XProcException.dynamicError(23);
@@ -125,7 +120,7 @@ public class StepAvailable extends ExtensionFunctionDefinition {
 
             if (decl != null) {
                 if (decl.isAtomic()) {
-                	value = runtime.getConfiguration().isStepAvailable(decl.getDeclaredType());
+                	value = config.isStepAvailable(decl.getDeclaredType());
                 } else {
                     value = true;
                 }

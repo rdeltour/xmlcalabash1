@@ -78,7 +78,6 @@ public class XProcRuntime {
     protected Logger logger = Logger.getLogger("com.xmlcalabash");
     private Processor processor = null;
     private Parser parser = null;
-    private XProcURIResolver uriResolver = null;
     private XProcConfiguration config = null;
     private Vector<XStep> reported = new Vector<XStep> ();
     private String phoneHomeURL = "http://xproc.org/cgi-bin/phonehome";
@@ -97,82 +96,28 @@ public class XProcRuntime {
     private boolean allowGeneralExpressions = true;
     private XProcData xprocData = null;
     private Logger log = null;
-    private XProcMessageListener msgListener = null;
     private PipelineLibrary standardLibrary = null;
     private XLibrary xStandardLibrary = null;
     private Hashtable<String,Vector<Cookie>> cookieHash = new Hashtable<String,Vector<Cookie>> ();
 
     public XProcRuntime(XProcConfiguration config) {
         this.config = config;
+        config.setCurrentRuntime(this);
         processor = config.getProcessor();
-
-        xprocData = new XProcData(this);
-
-        processor.registerExtensionFunction(new Cwd(this));
-        processor.registerExtensionFunction(new BaseURI(this));
-        processor.registerExtensionFunction(new ResolveURI(this));
-        processor.registerExtensionFunction(new SystemProperty(this));
-        processor.registerExtensionFunction(new StepAvailable(this));
-        processor.registerExtensionFunction(new IterationSize(this));
-        processor.registerExtensionFunction(new IterationPosition(this));
-        processor.registerExtensionFunction(new ValueAvailable(this));
-        processor.registerExtensionFunction(new VersionAvailable(this));
-        processor.registerExtensionFunction(new XPathVersionAvailable(this));
-
-        log = Logger.getLogger(this.getClass().getName());
-
-        Configuration saxonConfig = processor.getUnderlyingConfiguration();
-        uriResolver = new XProcURIResolver(this);
-        saxonConfig.setURIResolver(uriResolver);
-        staticBaseURI = URIUtils.cwdAsURI();
-
-        try {
-            if (config.uriResolver != null) {
-                uriResolver.setUnderlyingURIResolver((URIResolver) Class.forName(config.uriResolver).newInstance());
-            }
-            if (config.entityResolver != null) {
-                uriResolver.setUnderlyingEntityResolver((EntityResolver) Class.forName(config.entityResolver).newInstance());
-            }
-
-            if (config.errorListener != null) {
-                msgListener = (XProcMessageListener) Class.forName(config.errorListener).newInstance();
-            } else {
-                msgListener = new DefaultXProcMessageListener();
-            }
-        } catch (Exception e) {
-            throw new XProcException(e);
-        }
-
-        StepErrorListener errListener = new StepErrorListener(this);
-        saxonConfig.setErrorListener(errListener);
-
         allowGeneralExpressions = config.extensionValues;
-
-        for (String className : config.extensionFunctions) {
-            try {
-                ExtensionFunctionDefinition def = (ExtensionFunctionDefinition) Class.forName(className).newInstance();
-                fine(null, null, "Instantiated: " + className);
-                processor.registerExtensionFunction(def);
-            } catch (NoClassDefFoundError ncdfe) {
-                fine(null, null, "Failed to instantiate extension function: " + className);
-            } catch (Exception e) {
-                fine(null, null, "Failed to instantiate extension function: " + className);
-            }
-        }
-
+        staticBaseURI = URIUtils.cwdAsURI();
+        log = Logger.getLogger(this.getClass().getName());
         reset();
     }
 
     public XProcRuntime(XProcRuntime runtime) {
         processor = runtime.processor;
         parser = runtime.parser;
-        uriResolver = runtime.uriResolver;
         config = runtime.config;
         phoneHome = runtime.phoneHome;
         staticBaseURI = runtime.staticBaseURI;
         allowGeneralExpressions = runtime.allowGeneralExpressions;
         log = runtime.log;
-        msgListener = runtime.msgListener;
         standardLibrary = runtime.standardLibrary;
         xStandardLibrary = runtime.xStandardLibrary;
         cookieHash = runtime.cookieHash;
@@ -194,24 +139,12 @@ public class XProcRuntime {
         return staticBaseURI;
     }
 
-    public void setURIResolver(URIResolver resolver) {
-        uriResolver.setUnderlyingURIResolver(resolver);
-    }
-
-    public void setEntityResolver(EntityResolver resolver) {
-        uriResolver.setUnderlyingEntityResolver(resolver);
-    }
-
     public XProcURIResolver getResolver() {
-        return uriResolver;
+        return config.getResolver();
     }
 
     public XProcMessageListener getMessageListener() {
-      return msgListener;
-    }
-
-    public void setMessageListener(XProcMessageListener listener) {
-      msgListener = listener;
+      return config.getMessageListner();
     }
     
     public void setCollection(URI href, Vector<XdmNode> docs) {
@@ -240,7 +173,7 @@ public class XProcRuntime {
     }
 
     public void cache(XdmNode doc, URI baseURI) {
-        uriResolver.cache(doc, baseURI);
+        getResolver().cache(doc, baseURI);
     }
 
     public XProcConfiguration getConfiguration() {
@@ -503,7 +436,7 @@ public class XProcRuntime {
     }
 
     public XdmNode parse(String uri, String base, boolean validate) {
-        XdmNode doc = uriResolver.parse(uri, base, validate);
+        XdmNode doc = getResolver().parse(uri, base, validate);
         return doc;
     }
 
@@ -588,31 +521,31 @@ public class XProcRuntime {
             errorMessage = message;
         }
 
-        msgListener.error(step, node, message, code);
+        config.getMessageListner().error(step, node, message, code);
     }
 
     public void error(Throwable error) {
-        msgListener.error(error);
+        config.getMessageListner().error(error);
     }
 
     public void warning(XProcRunnable step, XdmNode node, String message) {
-        msgListener.warning(step, node, message);
+        config.getMessageListner().warning(step, node, message);
     }
 
     public void info(XProcRunnable step, XdmNode node, String message) {
-        msgListener.info(step, node, message);
+        config.getMessageListner().info(step, node, message);
     }
 
     public void fine(XProcRunnable step, XdmNode node, String message) {
-        msgListener.fine(step, node, message);
+        config.getMessageListner().fine(step, node, message);
     }
 
     public void finer(XProcRunnable step, XdmNode node, String message) {
-        msgListener.finer(step, node, message);
+        config.getMessageListner().finer(step, node, message);
     }
 
     public void finest(XProcRunnable step, XdmNode node, String message) {
-        msgListener.finest(step, node, message);
+        config.getMessageListner().finest(step, node, message);
     }
 
     // ===========================================================

@@ -5,7 +5,6 @@ import net.sf.saxon.expr.Expression;
 import net.sf.saxon.expr.StaticContext;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.lib.ExtensionFunctionCall;
-import net.sf.saxon.lib.ExtensionFunctionDefinition;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.om.StructuredQName;
@@ -14,7 +13,8 @@ import net.sf.saxon.tree.iter.SingletonIterator;
 import net.sf.saxon.value.BooleanValue;
 import net.sf.saxon.value.SequenceType;
 import net.sf.saxon.s9api.QName;
-import com.xmlcalabash.core.XProcRuntime;
+
+import com.xmlcalabash.core.XProcConfiguration;
 import com.xmlcalabash.core.XProcException;
 import com.xmlcalabash.core.XProcConstants;
 import com.xmlcalabash.runtime.XStep;
@@ -43,16 +43,11 @@ import java.util.Hashtable;
  * Implementation of the XProc p:step-available function
  */
 
-public class ValueAvailable extends ExtensionFunctionDefinition {
-    private XProcRuntime runtime;
+public class ValueAvailable extends CalabashFunction {
     private static StructuredQName funcname = new StructuredQName("p", XProcConstants.NS_XPROC, "value-available");
 
-    protected ValueAvailable() {
-        // you can't call this one
-    }
-
-    public ValueAvailable(XProcRuntime runtime) {
-        this.runtime = runtime;
+    public ValueAvailable(XProcConfiguration config) {
+        super(config);
     }
 
     public StructuredQName getFunctionQName() {
@@ -89,7 +84,7 @@ public class ValueAvailable extends ExtensionFunctionDefinition {
         public SequenceIterator call(SequenceIterator[] arguments, XPathContext context) throws XPathException {
             StructuredQName sVarName = null;
 
-            XStep step = runtime.getXProcData().getStep();
+            XStep step = config.getCurrentRuntime().getXProcData().getStep();
             // FIXME: this can't be the best way to do this...
             if (!(step instanceof XCompoundStep)) {
                 throw XProcException.dynamicError(23);

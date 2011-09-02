@@ -3,11 +3,11 @@ package com.xmlcalabash.functions;
 import com.xmlcalabash.runtime.XCompoundStep;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.lib.ExtensionFunctionCall;
-import net.sf.saxon.lib.ExtensionFunctionDefinition;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.om.StructuredQName;
 import net.sf.saxon.om.SequenceIterator;
-import com.xmlcalabash.core.XProcRuntime;
+
+import com.xmlcalabash.core.XProcConfiguration;
 import com.xmlcalabash.core.XProcConstants;
 import com.xmlcalabash.core.XProcException;
 import com.xmlcalabash.runtime.XStep;
@@ -37,16 +37,11 @@ import net.sf.saxon.value.SequenceType;
  * Implementation of the XProc p:iteration-position function
  */
 
-public class IterationPosition extends ExtensionFunctionDefinition {
-    private XProcRuntime runtime;
+public class IterationPosition extends CalabashFunction {
     private static StructuredQName funcname = new StructuredQName("p", XProcConstants.NS_XPROC, "iteration-position");
 
-    protected IterationPosition() {
-        // you can't call this one
-    }
-
-    public IterationPosition(XProcRuntime runtime) {
-        this.runtime = runtime;
+    public IterationPosition(XProcConfiguration config) {
+        super(config);
     }
 
     public StructuredQName getFunctionQName() {
@@ -75,13 +70,13 @@ public class IterationPosition extends ExtensionFunctionDefinition {
 
     private class IterationPositionCall extends ExtensionFunctionCall {
         public SequenceIterator call(SequenceIterator[] arguments, XPathContext context) throws XPathException {
-            XStep step = runtime.getXProcData().getStep();
+            XStep step = config.getCurrentRuntime().getXProcData().getStep();
             // FIXME: this can't be the best way to do this...
             if (!(step instanceof XCompoundStep)) {
                 throw XProcException.dynamicError(23);
             }
             return SingletonIterator.makeIterator(
-                    new Int64Value(runtime.getXProcData().getIterationPosition()));
+                    new Int64Value(config.getCurrentRuntime().getXProcData().getIterationPosition()));
         }
     }
 }

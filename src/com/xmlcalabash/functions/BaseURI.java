@@ -13,6 +13,8 @@ import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.tree.iter.SingletonIterator;
 import net.sf.saxon.value.AnyURIValue;
 import net.sf.saxon.value.SequenceType;
+
+import com.xmlcalabash.core.XProcConfiguration;
 import com.xmlcalabash.core.XProcConstants;
 import com.xmlcalabash.core.XProcRuntime;
 
@@ -38,16 +40,14 @@ import com.xmlcalabash.core.XProcRuntime;
  * Implementation of the XSLT system-property() function
  */
 
-public class BaseURI extends ExtensionFunctionDefinition {
+public class BaseURI extends CalabashFunction {
+    
+
     private static StructuredQName funcname = new StructuredQName("p", XProcConstants.NS_XPROC,"base-uri");
-    private XProcRuntime runtime = null;
-
-    protected BaseURI() {
-        // you can't call this one
-    }
-
-    public BaseURI(XProcRuntime runtime) {
-        this.runtime = runtime;
+    
+    
+    public BaseURI(XProcConfiguration config) {
+        super(config);
     }
 
     public StructuredQName getFunctionQName() {
@@ -82,7 +82,7 @@ public class BaseURI extends ExtensionFunctionDefinition {
         public SequenceIterator call(SequenceIterator[] arguments, XPathContext context) throws XPathException {
             String baseURI = null;
 
-            XStep step = runtime.getXProcData().getStep();
+            XStep step = config.getCurrentRuntime().getXProcData().getStep();
             // FIXME: this can't be the best way to do this...
             if (!(step instanceof XCompoundStep)) {
                 throw XProcException.dynamicError(23);

@@ -5,7 +5,6 @@ import com.xmlcalabash.runtime.XCompoundStep;
 import com.xmlcalabash.runtime.XStep;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.lib.ExtensionFunctionCall;
-import net.sf.saxon.lib.ExtensionFunctionDefinition;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.om.StructuredQName;
 import net.sf.saxon.trans.XPathException;
@@ -13,8 +12,9 @@ import net.sf.saxon.tree.iter.SingletonIterator;
 import net.sf.saxon.value.SequenceType;
 import net.sf.saxon.value.BooleanValue;
 import net.sf.saxon.value.DoubleValue;
+
+import com.xmlcalabash.core.XProcConfiguration;
 import com.xmlcalabash.core.XProcConstants;
-import com.xmlcalabash.core.XProcRuntime;
 
 //
 // The contents of this file are subject to the Mozilla Public License Version 1.0 (the "License");
@@ -38,17 +38,13 @@ import com.xmlcalabash.core.XProcRuntime;
  * Implementation of the XSLT system-property() function
  */
 
-public class XPathVersionAvailable extends ExtensionFunctionDefinition {
+public class XPathVersionAvailable extends CalabashFunction {
+
     private static StructuredQName funcname = new StructuredQName("p", XProcConstants.NS_XPROC, "xpath-version-available");
-    private XProcRuntime runtime = null;
 
-     protected XPathVersionAvailable() {
-         // you can't call this one
-     }
-
-     public XPathVersionAvailable(XProcRuntime runtime) {
-         this.runtime = runtime;
-     }
+    public XPathVersionAvailable(XProcConfiguration config) {
+        super(config);
+    }
 
      public StructuredQName getFunctionQName() {
          return funcname;
@@ -78,7 +74,7 @@ public class XPathVersionAvailable extends ExtensionFunctionDefinition {
          public SequenceIterator call(SequenceIterator[] arguments, XPathContext context) throws XPathException {
              SequenceIterator iter = arguments[0];
 
-             XStep step = runtime.getXProcData().getStep();
+             XStep step = config.getCurrentRuntime().getXProcData().getStep();
              // FIXME: this can't be the best way to do this...
              if (!(step instanceof XCompoundStep)) {
                  throw XProcException.dynamicError(23);
